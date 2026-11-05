@@ -9,7 +9,7 @@
       </svg>
       <div class="mobile-warning-title">DESKTOP REQUIRED</div>
       <div class="mobile-warning-msg">
-        DAFAZAN's SHP Viewer is optimized for larger screens.<br>
+        Tampilan untuk mobile masih dalam pengembangan !.<br>
         Please open this on a PC, laptop, or tablet for the best experience.
       </div>
       <div class="mobile-warning-sub">Screen width &lt; 768px detected</div>
@@ -20,11 +20,12 @@
 
     <!-- ── TOP TOOLBAR ── -->
     <div class="toolbar">
-      <span class="brand">DAFAZAN's SHP VIEWER</span>
+      <span class="brand">
+        <img src="https://res.cloudinary.com/djm8hc5vg/image/upload/v1793903697/a0a3d6c55c13ebbfe324b4d6115d7751.png" alt="">
+        <img src="https://res.cloudinary.com/djm8hc5vg/image/upload/v1793903697/cropped-The-Education-University.png" alt="">
+      </span>
 
       <input ref="fileInput" type="file" multiple accept=".shp,.dbf,.shx,.prj" @change="handleImport" style="display:none" />
-      
-      
 
       <div class="divider" />
 
@@ -38,13 +39,11 @@
 
       <div class="divider" />
 
-      
       <div style="flex:1" />
       <ToolbarBtn icon="edit" label="Remove Feature" :active="editMode" color="#ffd740" @click="toggleEditMode" />
       <ToolbarBtn icon="vertex" label="Vertice" :active="showVertices" color="#a78bfa" @click="showVertices = !showVertices" />
 
       <template v-if="activeLayer">
-        <!-- <ToolbarBtn icon="↓" :label="`Export &quot;${activeLayer.name}&quot;`" color="#ff4081" @click="exportLayer(activeLayer)" /> -->
         <ToolbarBtn icon="clear" label="Clear" color="#ff4444" @click="clearActiveLayer" />
       </template>
 
@@ -64,8 +63,6 @@
           </div>
         </div>
       </div>
-
-      <!-- <ToolbarBtn :icon="sidebarOpen ? '' : ''" label="Layers" @click="sidebarOpen = !sidebarOpen" /> -->
     </div>
 
     <!-- ── BODY ── -->
@@ -80,11 +77,12 @@
             <ToolbarBtn icon="newlayer" label="New Layer" @click="createNewLayer" />
           </div>
           <div class="layer-list">
+
             <div v-if="!layers.length" class="empty-hint">
               No layers yet.<br>Import a shapefile<br>or create a new layer.
             </div>
             <LayerItem
-              v-for="layer in [...layers].reverse()"
+             v-for="layer in displayedLayers"
               :key="layer.id"
               :layer="layer"
               :isActive="layer.id === activeLayerId"
@@ -95,6 +93,54 @@
               @zoom="zoomToLayer(layer)"
               @rename="(name) => renameLayer(layer.id, name)"
             />
+          </div>
+
+          <!-- RASTER MANAGER -->
+          <div class="raster-section">
+            <div class="sidebar-header">
+              RASTER LAYERS ({{ rasterLayers.length }})
+            </div>
+
+            <div class="raster-list">
+              <div v-if="!rasterLayers.length" class="empty-hint">
+                No raster files found.
+              </div>
+
+              <div
+                v-for="raster in rasterLayers"
+                :key="raster.name"
+                class="raster-item"
+                :class="{ active: raster.visible, loading: raster.loading }"
+              >
+                <button class="raster-btn" @click="toggleRaster(raster)">
+                  <span class="raster-btn-icon">
+                    <span v-if="raster.loading" class="spinner"></span>
+                    <template v-else>{{ raster.visible ? '◉' : '○' }}</template>
+                  </span>
+                  <span class="raster-btn-text">
+                    <span class="raster-name">{{ raster.name }}</span>
+                    <span class="raster-state">
+                      {{ raster.loading ? 'LOADING… (klik untuk batal)'
+                       : raster.visible ? 'AKTIF — klik untuk sembunyikan'
+                       : 'Klik untuk tampilkan' }}
+                    </span>
+                  </span>
+                </button>
+
+                <div v-if="raster.loading" class="raster-progress">
+                  <div class="raster-progress-bar"></div>
+                </div>
+
+                <div class="raster-opacity">
+                  <span>OPACITY</span>
+                  <input type="range" min="0" max="100" :value="raster.opacity"
+                         @input="changeRasterOpacity(raster, $event)" />
+                  <span>{{ raster.opacity }}%</span>
+                </div>
+
+                <div v-if="raster.error" class="raster-error">{{ raster.error }}</div>
+              </div>
+            </div>
           </div>
 
           <div v-if="activeLayer" class="sidebar-footer">
@@ -120,16 +166,174 @@
           <span v-if="drawMode" class="draw-mode-tag">DRAW: {{ drawMode.toUpperCase() }}</span>
         </div>
       </div>
+
+      <!-- Map Legend -->
+<div class="map-layout">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <!-- Sidebar layer yang sudah ada -->
+  </aside>
+
+  <!-- MAP -->
+  <div class="map-container">
+    <div id="map"></div>
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <aside class="legend-sidebar">
+    <div class="sidebar-header">
+      <span>Legend</span>
+    </div>
+
+    <div class="legend-list">
+      <div
+        v-for="layer in displayedLayers"
+        :key="layer.id"
+        v-show="layer.visible"
+        class="legend-item"
+      >
+        <span
+          class="legend-color"
+          :style="{ backgroundColor: layer.color }"
+        ></span>
+
+        <span class="legend-name">{{ layer.name }}</span>
+      </div>
+
+      <div
+        v-if="!layers.some(layer => layer.visible)"
+        class="legend-empty"
+      >
+        No visible layers
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+
+
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, markRaw } from 'vue'
 import L from 'leaflet'
 import shp from 'shpjs'
 import JSZip from 'jszip'
 import 'leaflet/dist/leaflet.css'
+
+import parseGeoraster from 'georaster'
+import GeoRasterLayer from 'georaster-layer-for-leaflet'
+
+// ── DEFAULT VECTOR LAYER ──────────────────────────────────
+
+const vectorFiles = import.meta.glob('/src/vectors/*', {
+  eager: true,
+  query: '?url',
+  import: 'default'
+})
+
+const vectorFileMap = Object.fromEntries(
+  Object.entries(vectorFiles).map(([path, url]) => [
+    path.split('/').pop().toLowerCase(),
+    url
+  ])
+)
+
+async function loadDefaultVectorLayer() {
+  try {
+    showStatus('Loading default vector layer...', 0)
+
+    const requiredFiles = ['sptharea.shp', 'sptharea.shx', 'sptharea.dbf']
+
+    // Pastikan file utama dan file pendamping tersedia
+    for (const filename of requiredFiles) {
+      if (!vectorFileMap[filename]) {
+        throw new Error(`Missing file: ${filename}`)
+      }
+    }
+
+    // Buat ZIP sementara untuk dibaca oleh shpjs
+    const zip = new JSZip()
+
+    const filesToLoad = [
+      'sptharea.shp',
+      'sptharea.shx',
+      'sptharea.dbf',
+      'sptharea.prj',
+      'sptharea.cpg'
+    ]
+
+    for (const filename of filesToLoad) {
+      const url = vectorFileMap[filename]
+
+      if (!url) continue
+
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${filename}`)
+      }
+
+      const buffer = await response.arrayBuffer()
+      zip.file(filename, buffer)
+    }
+
+    const zipBuffer = await zip.generateAsync({
+      type: 'arraybuffer'
+    })
+
+    const geojson = await shp(zipBuffer)
+
+    const id = newLayerId()
+
+    const defaultLayer = {
+      id,
+      name: 'SPTHAREA',
+      geojson,
+      visible: true,
+      color: '#00e5ff',
+      isDefault: true
+    }
+
+    layers.value.push(defaultLayer)
+
+    activeLayerId.value = id
+
+    // Zoom ke area shapefile
+    const bounds = L.geoJSON(geojson).getBounds()
+
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, {
+        padding: [40, 40],
+        maxZoom: 16
+      })
+    }
+
+    showStatus('Default layer SPTHAREA loaded')
+
+  } catch (error) {
+    console.error('Default vector loading error:', error)
+    showStatus(`Failed to load SPTHAREA: ${error.message}`)
+  }
+}
+// ── RASTER MANAGER ────────────────────────────────────────
+
+const rasterLayers = ref([])
+
+const rasterModules = import.meta.glob('/src/rasters/*.tif', {
+  eager: true,
+  query: '?url',
+  import: 'default'
+})
+
+const availableRasters = Object.entries(rasterModules).map(([path, url]) => ({
+  name: path.split('/').pop(),
+  url
+}))
 
 // Fix Leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl
@@ -157,12 +361,44 @@ const basemapOpen    = ref(false)
 const showVertices   = ref(false)
 const status         = ref('Ready')
 
+const CARTO_API_KEY = 'cb1_50tf_1_be0caefafd2cfc3cd17d2f77'
+
 const basemaps = [
-  { id: 'dark',    label: 'Dark',       dot: '#334', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',         attribution: '© CARTO' },
-  { id: 'light',   label: 'Light',      dot: '#ddd', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',        attribution: '© CARTO' },
-  { id: 'street',  label: 'Streets',    dot: '#f80', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',                    attribution: '© OpenStreetMap' },
-  { id: 'topo',    label: 'Topo',       dot: '#4a8', url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',                      attribution: '© OpenTopoMap' },
-  { id: 'sat',     label: 'Satellite',  dot: '#246', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '© Esri' },
+  {
+    id: 'dark',
+    label: 'Dark',
+    dot: '#334',
+    url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY}`,
+    attribution: '© CARTO'
+  },
+  {
+    id: 'light',
+    label: 'Light',
+    dot: '#ddd',
+    url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY}`,
+    attribution: '© CARTO'
+  },
+  {
+    id: 'street',
+    label: 'Streets',
+    dot: '#f80',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap'
+  },
+  {
+    id: 'topo',
+    label: 'Topo',
+    dot: '#4a8',
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenTopoMap'
+  },
+  {
+    id: 'sat',
+    label: 'Satellite',
+    dot: '#246',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '© Esri'
+  },
 ]
 const currentBasemap = ref(basemaps[0])
 
@@ -175,6 +411,17 @@ let tempVertexMarkers = [] // vertex dots while drawing
 let editMarkers = []
 
 const activeLayer = computed(() => layers.value.find(l => l.id === activeLayerId.value) || null)
+
+const displayedLayers = computed(() => {
+  return [...layers.value].sort((a, b) => {
+    // Default layer selalu berada paling atas
+    if (a.isDefault) return -1
+    if (b.isDefault) return 1
+
+    // Layer lainnya tetap menggunakan urutan terbaru di atas
+    return layers.value.indexOf(b) - layers.value.indexOf(a)
+  })
+})
 
 // ── Status helper ─────────────────────────────────────────────────────────────
 let statusTimer = null
@@ -202,12 +449,30 @@ onMounted(async () => {
 
   // close basemap dropdown on map click
   map.on('click', () => { basemapOpen.value = false })
+
+  initializeRasterLayers()
+await loadDefaultVectorLayer()
 })
 
 onBeforeUnmount(() => {
+  // batalkan semua load raster yang masih berjalan
+  rasterRequestId++
+
   if (map) {
     map.getContainer().removeEventListener('mousedown', onMiddleClick)
+
+    rasterLayers.value.forEach(raster => {
+      if (raster.layer && map.hasLayer(raster.layer)) {
+        map.removeLayer(raster.layer)
+      }
+    })
+
     map.remove()
+    map = null
+  }
+
+  if (statusTimer) {
+    clearTimeout(statusTimer)
   }
 })
 
@@ -262,6 +527,159 @@ function setBasemap(bm) {
   baseTileLayer.bringToBack()
 }
 
+// ── RASTER FUNCTIONS ──────────────────────────────────────
+
+function initializeRasterLayers() {
+  rasterLayers.value = availableRasters.map(raster => ({
+  name: raster.name,
+  url: raster.url,
+  georaster: null,
+  layer: null,
+  visible: false,
+  loading: false,
+  error: null,
+  opacity: 80
+}))
+}
+
+let rasterRequestId = 0 // penanda request terbaru (untuk membatalkan load yang basi)
+
+// Konversi piksel georaster -> L.imageOverlay (tanpa tile cache)
+function georasterToOverlay(georaster, opacity) {
+  const MAX = 2048
+  const scale = Math.min(1, MAX / Math.max(georaster.width, georaster.height))
+  const w = Math.max(1, Math.round(georaster.width * scale))
+  const h = Math.max(1, Math.round(georaster.height * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  const img = ctx.createImageData(w, h)
+
+  const bands = georaster.values // [band][row][col]
+  const nb = georaster.numberOfRasters
+  const nodata = georaster.noDataValue
+
+  for (let y = 0; y < h; y++) {
+    const sy = Math.min(georaster.height - 1, Math.floor(y / scale))
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(georaster.width - 1, Math.floor(x / scale))
+      const i = (y * w + x) * 4
+      const r = bands[0][sy][sx]
+      if (nb >= 3) {
+        img.data[i]     = r
+        img.data[i + 1] = bands[1][sy][sx]
+        img.data[i + 2] = bands[2][sy][sx]
+        img.data[i + 3] = nb >= 4 ? bands[3][sy][sx] : 255
+      } else {
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = r
+        img.data[i + 3] = 255
+      }
+      if (nodata != null && r === nodata) img.data[i + 3] = 0
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+
+  let bounds
+  if (georaster.projection === 3857) {
+    const R = 6378137
+    const lat = y => Math.atan(Math.sinh(y / R)) * 180 / Math.PI
+    const lng = x => x / R * 180 / Math.PI
+    bounds = [[lat(georaster.ymin), lng(georaster.xmin)], [lat(georaster.ymax), lng(georaster.xmax)]]
+  } else {
+    bounds = [[georaster.ymin, georaster.xmin], [georaster.ymax, georaster.xmax]]
+  }
+
+  return L.imageOverlay(canvas.toDataURL('image/png'), bounds, { opacity })
+}
+
+function hideRaster(raster) {
+  if (raster.layer && map) map.removeLayer(raster.layer)
+  raster.layer = null
+  raster.visible = false
+}
+
+async function toggleRaster(raster) {
+  if (!map) return
+
+  // klik raster aktif -> sembunyikan
+  if (raster.visible) {
+    hideRaster(raster)
+    showStatus(`Hidden ${raster.name}`)
+    return
+  }
+
+  // klik raster yang sedang loading -> batalkan
+  if (raster.loading) {
+    rasterRequestId++
+    raster.loading = false
+    showStatus(`Cancelled ${raster.name}`)
+    return
+  }
+
+  // sembunyikan semua raster lain
+  const requestId = ++rasterRequestId
+  rasterLayers.value.forEach(r => {
+    if (r !== raster) { hideRaster(r); r.loading = false }
+  })
+
+  try {
+    raster.loading = true
+    raster.error = null
+    showStatus(`Loading ${raster.name}...`, 0)
+
+    // cache hanya untuk data hasil parse
+    if (!raster.georaster) {
+      const response = await fetch(raster.url)
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`)
+      const buf = await response.arrayBuffer()
+      if (requestId !== rasterRequestId) return
+
+      const g = await parseGeoraster(buf)
+      if (requestId !== rasterRequestId) return
+      if (!g.width || !g.height) throw new Error('Invalid raster dimensions')
+      raster.georaster = markRaw(g)
+    }
+
+    const g = raster.georaster
+    console.log('RASTER', raster.name, {
+      url: raster.url,
+      bands: g.numberOfRasters,
+      projection: g.projection,
+      bbox: [g.xmin, g.ymin, g.xmax, g.ymax],
+      sample: g.values[0][Math.floor(g.height / 2)].slice(0, 8),
+    })
+
+    const layer = markRaw(georasterToOverlay(g, raster.opacity / 100))
+    layer.addTo(map)
+    raster.layer = layer
+    raster.visible = true
+
+    const b = layer.getBounds()
+    if (b?.isValid()) map.fitBounds(b, { padding: [40, 40], maxZoom: 16 })
+    showStatus(`Loaded ${raster.name}`)
+  } catch (error) {
+    if (requestId !== rasterRequestId) return
+    console.error('Raster loading error:', error)
+    raster.error = error.message
+    raster.visible = false
+    showStatus(`Failed: ${raster.name}`)
+  } finally {
+    if (requestId === rasterRequestId) raster.loading = false
+  }
+}
+
+// Change opacity
+function changeRasterOpacity(raster, event) {
+  const value = Number(event.target.value)
+  raster.opacity = value
+  if (raster.layer) {
+    raster.layer.setOpacity(value / 100)
+  }
+}
+
+// ── Draw helpers ──────────────────────────────────────────────────────────────
 function toggleDraw(mode) {
   editMode.value = false
   drawMode.value = drawMode.value === mode ? null : mode
@@ -534,11 +952,6 @@ function renameLayer(id, name) {
   if (l && name.trim()) { l.name = name.trim(); showStatus(`Renamed to "${l.name}"`) }
 }
 
-// function removeLayer(id) {
-//   if (leafletLayers[id]) { map.removeLayer(leafletLayers[id]); delete leafletLayers[id] }
-//   layers.value = layers.value.filter(l => l.id !== id)
-//   if (activeLayerId.value === id) activeLayerId.value = null
-// }
 function removeLayer(id) {
   const layer = layers.value.find(l => l.id === id)
   if (!confirm(`Delete layer "${layer?.name}"?`)) return
@@ -570,15 +983,6 @@ function clearActiveLayer() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function newLayerId() { return `layer_${Date.now()}_${Math.random().toString(36).slice(2)}` }
-
-function readFileBuffer(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader()
-    r.onload = e => res(e.target.result)
-    r.onerror = rej
-    r.readAsArrayBuffer(file)
-  })
-}
 
 // ── SHP encoder ───────────────────────────────────────────────────────────────
 function geojsonToShapefile(geojson) {
@@ -873,16 +1277,17 @@ export const ToolbarBtn = defineComponent({
 
 /* Sidebar */
 .sidebar {
-  width: 240px; background: #0d1117;
+  width: 260px; background: #0d1117;
   border-right: 1px solid #1c2333;
   display: flex; flex-direction: column; flex-shrink: 0;
+  overflow-y: auto;
 }
 .sidebar-header {
   padding: 10px 12px 6px; font-size: 10px;
   color: #444; letter-spacing: 2px;
   border-bottom: 1px solid #1c2333;
 }
-.layer-list { flex: 1; overflow-y: auto; }
+.layer-list { flex: 1; min-height: 80px; overflow-y: auto; }
 .empty-hint {
   padding: 20px 12px; font-size: 11px;
   color: #333; text-align: center; line-height: 1.8;
@@ -918,7 +1323,7 @@ export const ToolbarBtn = defineComponent({
 /* Sidebar slide transition */
 .slide-enter-active, .slide-leave-active { transition: width 0.2s ease, opacity 0.2s ease; }
 .slide-enter-from, .slide-leave-to { width: 0; opacity: 0; overflow: hidden; }
-.slide-enter-to, .slide-leave-from { width: 240px; opacity: 1; }
+.slide-enter-to, .slide-leave-from { width: 260px; opacity: 1; }
 
 /* Basemap picker */
 .basemap-picker { position: relative; }
@@ -983,4 +1388,182 @@ export const ToolbarBtn = defineComponent({
 }
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip { background: #0d1117; border: 1px solid #1c2333; color: #c9d1d9; }
+
+/* ───────────── RASTER MANAGER ───────────── */
+
+.raster-section {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #1c2333;
+  border-bottom: 1px solid #1c2333;
+}
+
+.raster-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.raster-item {
+  padding: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.raster-item.active { background: rgba(0,229,255,0.06); }
+
+/* Tombol besar untuk aktivasi raster */
+.raster-btn {
+  width: 100%;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 12px;
+  min-height: 56px;
+  background: #111822;
+  border: 1px solid #1c2333;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-family: 'IBM Plex Mono', monospace;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.raster-btn:hover { background: #172030; border-color: rgba(0,229,255,0.35); }
+.raster-item.active .raster-btn { border-color: #00e5ff; background: rgba(0,229,255,0.1); }
+.raster-item.loading .raster-btn { border-color: #ff9100; background: rgba(255,145,0,0.06); }
+
+.raster-btn-icon {
+  width: 28px; height: 28px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; color: #555;
+}
+.raster-item.active .raster-btn-icon { color: #00e5ff; }
+
+.raster-btn-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.raster-name {
+  font-size: 12px; font-weight: 600; color: #c9d1d9;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.raster-state { font-size: 10px; color: #666; }
+.raster-item.active .raster-state  { color: #00e5ff; }
+.raster-item.loading .raster-state { color: #ff9100; }
+
+/* Spinner loading */
+.spinner {
+  width: 20px; height: 20px;
+  border: 3px solid rgba(255,145,0,0.25);
+  border-top-color: #ff9100;
+  border-radius: 50%;
+  animation: raster-spin 0.8s linear infinite;
+}
+@keyframes raster-spin { to { transform: rotate(360deg); } }
+
+/* Progress bar indeterminate */
+.raster-progress {
+  height: 3px; margin-top: 6px;
+  background: #1c2333; border-radius: 2px; overflow: hidden;
+}
+.raster-progress-bar {
+  width: 40%; height: 100%; background: #ff9100;
+  animation: raster-slide 1.1s ease-in-out infinite;
+}
+@keyframes raster-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+.raster-opacity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+  font-size: 9px;
+  color: #555;
+}
+.raster-opacity input {
+  flex: 1;
+  min-width: 0;
+  height: 3px;
+  accent-color: #00e5ff;
+  cursor: pointer;
+}
+.raster-opacity span:last-child {
+  min-width: 30px;
+  text-align: right;
+  color: #888;
+}
+
+.raster-error {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #ff6464;
+  line-height: 1.5;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  
+  height: 100%;
+  gap: 8px;
+}
+
+.brand img {
+  
+  height: 100%;
+  object-fit: contain;
+  min-width: 0;
+}
+
+.map-legend {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 220px;
+  max-height: calc(100% - 40px);
+  overflow-y: auto;
+  z-index: 1000;
+
+  background: #172030;
+  color: #222222;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+
+.legend-header {
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.legend-content {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.legend-symbol {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.legend-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-empty {
+  font-size: 12px;
+  color: #999999;
+}
 </style>
