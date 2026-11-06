@@ -50,7 +50,7 @@
       <div class="basemap-picker">
         <button class="toolbar-btn" @click="basemapOpen = !basemapOpen" title="Change Basemap">
           <span style="display:flex;align-items:center"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="1,3 5,1 9,3 13,1 13,11 9,13 5,11 1,13" stroke="#888" stroke-width="1.3" stroke-linejoin="round" fill="none"/><line x1="5" y1="1" x2="5" y2="11" stroke="#888" stroke-width="1.3"/><line x1="9" y1="3" x2="9" y2="13" stroke="#888" stroke-width="1.3"/></svg></span>
-          <span style="font-size:10px;color:#555">▾</span>
+          <span style="font-size:10px;color:#555">Change Basemap ▾</span>
         </button>
         <div v-if="basemapOpen" class="basemap-dropdown">
           <div
@@ -423,9 +423,9 @@ const RASTER_LEGENDS = {
   change: {
     title: 'NDVI Change',
     items: [
-      { color: '#ff0000', label: 'Negative: Vegetation Loss' },
-      { color: '#ffffff', label: 'Zero: No Significant Change' },
-      { color: '#008000', label: 'Positive: Vegetation Gain' },
+      { color: '#ff0000', label: 'Vegetation Loss' },
+      { color: '#ffffff', label: 'Stable' },
+      { color: '#008000', label: 'Vegetation Gain' },
     ],
   },
 }
