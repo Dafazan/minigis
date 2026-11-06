@@ -277,7 +277,7 @@ async function loadDefaultVectorLayer() {
 
     const defaultLayer = {
       id,
-      name: 'SPTHAREA',
+      name: 'Lahan Eco Edu Agroforestry',
       geojson,
       visible: true,
       color: '#00e5ff',
@@ -413,19 +413,19 @@ const RASTER_LEGENDS = {
   ndvi: {
     title: 'NDVI Classification',
     items: [
-      { color: '#a52a2a', label: '0.0 - 0.2 : Very Low' },
-      { color: '#ffff00', label: '0.2 - 0.4 : Low' },
-      { color: '#90ee90', label: '0.4 - 0.6 : Moderate' },
-      { color: '#008000', label: '0.6 - 0.8 : High' },
-      { color: '#006400', label: '0.8 - 1.0 : Very High' },
+      { color: '#a52a2a', label: 'Non Vegetasi' },
+      { color: '#ffff00', label: 'Vegetasi Sangat Rendah' },
+      { color: '#90ee90', label: 'Vegetasi Rendah' },
+      { color: '#008000', label: 'Vegetasi Sedang' },
+      { color: '#006400', label: 'Vegetasi Tinggi' },
     ],
   },
   change: {
     title: 'NDVI Change',
     items: [
-      { color: '#ff0000', label: 'Vegetation Loss' },
-      { color: '#ffffff', label: 'Stable' },
-      { color: '#008000', label: 'Vegetation Gain' },
+      { color: '#ff0000', label: 'Vegetasi Hilang' },
+      { color: '#ffffff', label: 'Vegetasi Stabil' },
+      { color: '#008000', label: 'Vegetasi Bertambah' },
     ],
   },
 }
