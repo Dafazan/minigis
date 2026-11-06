@@ -167,50 +167,35 @@
         </div>
       </div>
 
-      <!-- Map Legend -->
-<div class="map-layout">
+      <!-- ── RIGHT SIDEBAR: LEGEND ── -->
+      <aside class="legend-sidebar">
+        <div class="sidebar-header">LEGEND</div>
 
-  <!-- LEFT SIDEBAR -->
-  <aside class="sidebar">
-    <!-- Sidebar layer yang sudah ada -->
-  </aside>
+        <div class="legend-body">
+          <!-- Legenda SHP yang aktif (selalu paling atas) -->
+          <div class="legend-block">
+            <div class="legend-title">Vector Layers</div>
 
-  <!-- MAP -->
-  <div class="map-container">
-    <div id="map"></div>
-  </div>
+            <div v-for="layer in visibleVectorLayers" :key="layer.id" class="legend-item">
+              <span class="legend-symbol"
+                    :style="{ background: layer.color + '40', borderColor: layer.color }"></span>
+              <span class="legend-label">{{ layer.name }}</span>
+            </div>
 
-  <!-- RIGHT SIDEBAR -->
-  <aside class="legend-sidebar">
-    <div class="sidebar-header">
-      <span>Legend</span>
-    </div>
+            <div v-if="!visibleVectorLayers.length" class="legend-empty">No visible layers</div>
+          </div>
 
-    <div class="legend-list">
-      <div
-        v-for="layer in displayedLayers"
-        :key="layer.id"
-        v-show="layer.visible"
-        class="legend-item"
-      >
-        <span
-          class="legend-color"
-          :style="{ backgroundColor: layer.color }"
-        ></span>
+          <!-- Legenda raster (muncul sesuai raster yang aktif) -->
+          <div v-if="rasterLegend" class="legend-block">
+            <div class="legend-title">{{ rasterLegend.title }}</div>
 
-        <span class="legend-name">{{ layer.name }}</span>
-      </div>
-
-      <div
-        v-if="!layers.some(layer => layer.visible)"
-        class="legend-empty"
-      >
-        No visible layers
-      </div>
-    </div>
-  </aside>
-
-</div>
+            <div v-for="item in rasterLegend.items" :key="item.label" class="legend-item">
+              <span class="legend-symbol" :style="{ background: item.color }"></span>
+              <span class="legend-label">{{ item.label }}</span>
+            </div>
+          </div>
+        </div>
+      </aside>
 
 
 
@@ -422,6 +407,40 @@ const displayedLayers = computed(() => {
     return layers.value.indexOf(b) - layers.value.indexOf(a)
   })
 })
+
+// ── Legend ────────────────────────────────────────────────
+const RASTER_LEGENDS = {
+  ndvi: {
+    title: 'NDVI Classification',
+    items: [
+      { color: '#a52a2a', label: '0.0 - 0.2 : Very Low' },
+      { color: '#ffff00', label: '0.2 - 0.4 : Low' },
+      { color: '#90ee90', label: '0.4 - 0.6 : Moderate' },
+      { color: '#008000', label: '0.6 - 0.8 : High' },
+      { color: '#006400', label: '0.8 - 1.0 : Very High' },
+    ],
+  },
+  change: {
+    title: 'NDVI Change',
+    items: [
+      { color: '#ff0000', label: 'Negative: Vegetation Loss' },
+      { color: '#ffffff', label: 'Zero: No Significant Change' },
+      { color: '#008000', label: 'Positive: Vegetation Gain' },
+    ],
+  },
+}
+
+const activeRaster = computed(() => rasterLayers.value.find(r => r.visible) || null)
+
+const rasterLegend = computed(() => {
+  const name = activeRaster.value?.name?.toLowerCase()
+  if (!name) return null
+  if (name.startsWith('ndvi')) return RASTER_LEGENDS.ndvi
+  if (name.startsWith('change') || name.startsWith('cumulative')) return RASTER_LEGENDS.change
+  return null
+})
+
+const visibleVectorLayers = computed(() => displayedLayers.value.filter(l => l.visible))
 
 // ── Status helper ─────────────────────────────────────────────────────────────
 let statusTimer = null
@@ -1566,4 +1585,36 @@ export const ToolbarBtn = defineComponent({
   font-size: 12px;
   color: #999999;
 }
+
+/* ───────────── LEGEND SIDEBAR ───────────── */
+.legend-sidebar {
+  width: 240px; flex-shrink: 0;
+  background: #0d1117;
+  border-left: 1px solid #1c2333;
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.legend-body { display: flex; flex-direction: column; }
+.legend-block {
+  padding: 12px;
+  border-bottom: 1px solid #1c2333;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.legend-title {
+  font-size: 12px; font-weight: 600; color: #c9d1d9;
+  margin-bottom: 2px;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: #9aa4b2;
+}
+.legend-symbol {
+  width: 16px; height: 16px; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 2px;
+}
+.legend-label {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.legend-empty { font-size: 11px; color: #444; }
 </style>
