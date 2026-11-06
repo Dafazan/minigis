@@ -277,7 +277,7 @@ async function loadDefaultVectorLayer() {
 
     const defaultLayer = {
       id,
-      name: 'Lahan Eco Edu Agroforestry',
+      name: 'Area SPTH',
       geojson,
       visible: true,
       color: '#00e5ff',
