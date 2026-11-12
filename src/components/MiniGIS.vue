@@ -16,10 +16,10 @@
     </div>
   </div>
 
-  <div class="gis-root">
+  <div class="gis-root" :data-theme="theme">
 
-    <!-- ── TOP TOOLBAR ── -->
-    <div class="toolbar">
+    <!-- ── TOP BAR ── -->
+    <header class="topbar">
       <span class="brand">
         <img src="https://res.cloudinary.com/djm8hc5vg/image/upload/v1793903697/a0a3d6c55c13ebbfe324b4d6115d7751.png" alt="">
         <img src="https://res.cloudinary.com/djm8hc5vg/image/upload/v1793903697/cropped-The-Education-University.png" alt="">
@@ -27,177 +27,240 @@
 
       <input ref="fileInput" type="file" multiple accept=".shp,.dbf,.shx,.prj" @change="handleImport" style="display:none" />
 
-      <div class="divider" />
+      <div class="topbar-spacer" />
 
-      <ToolbarBtn icon="point"   label="Point"   :active="drawMode === 'point'"   color="#76ff03" @click="toggleDraw('point')" />
-      <ToolbarBtn icon="line"    label="Line"    :active="drawMode === 'line'"    color="#00e5ff" @click="toggleDraw('line')" />
-      <ToolbarBtn icon="polygon" label="Polygon" :active="drawMode === 'polygon'" color="#ff9100" @click="toggleDraw('polygon')" />
-
-      <span v-if="drawMode" class="draw-hint">
-        {{ drawMode === 'point' ? 'Click to place point' : `Click vertices • Middle-click to finish ${drawMode}` }}
-      </span>
-
-      <div class="divider" />
-
-      <div style="flex:1" />
-      <ToolbarBtn icon="edit" label="Remove Feature" :active="editMode" color="#ffd740" @click="toggleEditMode" />
-      <ToolbarBtn icon="vertex" label="Vertice" :active="showVertices" color="#a78bfa" @click="showVertices = !showVertices" />
-
-      <template v-if="activeLayer">
-        <ToolbarBtn icon="clear" label="Clear" color="#ff4444" @click="clearActiveLayer" />
-      </template>
+      <div class="theme-switch" role="group" aria-label="Tema tampilan">
+        <button type="button" :class="['theme-opt', theme === 'light' ? 'active' : '']" :aria-pressed="theme === 'light'" title="Mode terang" @click="setTheme('light')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <span>Terang</span>
+        </button>
+        <button type="button" :class="['theme-opt', theme === 'dark' ? 'active' : '']" :aria-pressed="theme === 'dark'" title="Mode gelap" @click="setTheme('dark')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></svg>
+          <span>Gelap</span>
+        </button>
+      </div>
 
       <div class="basemap-picker">
-        <button class="toolbar-btn" @click="basemapOpen = !basemapOpen" title="Change Basemap">
-          <span style="display:flex;align-items:center"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="1,3 5,1 9,3 13,1 13,11 9,13 5,11 1,13" stroke="#888" stroke-width="1.3" stroke-linejoin="round" fill="none"/><line x1="5" y1="1" x2="5" y2="11" stroke="#888" stroke-width="1.3"/><line x1="9" y1="3" x2="9" y2="13" stroke="#888" stroke-width="1.3"/></svg></span>
-          <span style="font-size:10px;color:#555">Change Basemap ▾</span>
+        <button
+          type="button"
+          class="toolbar-btn toolbar-btn--solid"
+          title="Ganti basemap"
+          aria-haspopup="true"
+          :aria-expanded="basemapOpen"
+          @click="basemapOpen = !basemapOpen"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>
+          <span>Ganti basemap</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--muted)"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div v-if="basemapOpen" class="basemap-dropdown">
-          <div
+          <button
+            type="button"
             v-for="bm in basemaps" :key="bm.id"
             :class="['basemap-item', currentBasemap.id === bm.id ? 'active' : '']"
             @click="setBasemap(bm)"
           >
             <span class="bm-dot" :style="{ background: bm.dot }"></span>
             {{ bm.label }}
-          </div>
+          </button>
         </div>
       </div>
-    </div>
+    </header>
 
     <!-- ── BODY ── -->
     <div class="body">
 
       <!-- ── SIDEBAR ── -->
       <transition name="slide">
-        <div v-if="sidebarOpen" class="sidebar">
-          <div class="sidebar-header">LAYERS {{ layers.length ? `(${layers.length})` : '' }}</div>
-          <div class="sidebar-actions">
-            <ToolbarBtn icon="import" label="Import SHP" @click="fileInput.click()" />
-            <ToolbarBtn icon="newlayer" label="New Layer" @click="createNewLayer" />
-          </div>
-          <div class="layer-list">
+        <aside v-if="sidebarOpen" class="sidebar">
+          <div class="sidebar-scroll">
 
-            <div v-if="!layers.length" class="empty-hint">
-              No layers yet.<br>Import a shapefile<br>or create a new layer.
-            </div>
-            <LayerItem
-             v-for="layer in displayedLayers"
-              :key="layer.id"
-              :layer="layer"
-              :isActive="layer.id === activeLayerId"
-              :color="layer.color"
-              @select="activeLayerId = layer.id"
-              @toggle="toggleLayer(layer.id)"
-              @remove="removeLayer(layer.id)"
-              @zoom="zoomToLayer(layer)"
-              @rename="(name) => renameLayer(layer.id, name)"
-            />
-          </div>
-
-          <!-- RASTER MANAGER -->
-          <div class="raster-section">
-            <div class="sidebar-header">
-              RASTER LAYERS ({{ rasterLayers.length }})
-            </div>
-
-            <div class="raster-list">
-              <div v-if="!rasterLayers.length" class="empty-hint">
-                No raster files found.
+            <!-- VECTOR LAYERS -->
+            <section class="panel-section">
+              <div class="section-head">
+                <span class="section-title">Layer vektor</span>
+                <span class="count-pill">{{ layers.length }}</span>
               </div>
 
-              <div
-                v-for="raster in rasterLayers"
-                :key="raster.name"
-                class="raster-item"
-                :class="{ active: raster.visible, loading: raster.loading }"
-              >
-                <button class="raster-btn" @click="toggleRaster(raster)">
-                  <span class="raster-btn-icon">
-                    <span v-if="raster.loading" class="spinner"></span>
-                    <template v-else>{{ raster.visible ? '◉' : '○' }}</template>
-                  </span>
-                  <span class="raster-btn-text">
-                    <span class="raster-name">{{ raster.name }}</span>
-                    <span class="raster-state">
-                      {{ raster.loading ? 'LOADING… (klik untuk batal)'
-                       : raster.visible ? 'AKTIF — klik untuk sembunyikan'
-                       : 'Klik untuk tampilkan' }}
-                    </span>
-                  </span>
+              <div class="action-grid">
+                <ToolbarBtn icon="import" label="Import SHP" @click="fileInput.click()" />
+                <ToolbarBtn icon="newlayer" label="Layer baru" @click="createNewLayer" />
+              </div>
+
+              <div class="layer-list">
+                <div v-if="!layers.length" class="empty-hint">
+                  Belum ada layer.<br>Import shapefile atau buat layer baru.
+                </div>
+                <LayerItem
+                  v-for="layer in displayedLayers"
+                  :key="layer.id"
+                  :layer="layer"
+                  :isActive="layer.id === activeLayerId"
+                  :color="layer.color"
+                  @select="activeLayerId = layer.id"
+                  @toggle="toggleLayer(layer.id)"
+                  @remove="removeLayer(layer.id)"
+                  @zoom="zoomToLayer(layer)"
+                  @rename="(name) => renameLayer(layer.id, name)"
+                />
+              </div>
+            </section>
+
+            <!-- RASTER MANAGER -->
+            <section class="panel-section raster-section">
+              <div class="section-head">
+                <span class="section-title">Layer raster</span>
+                <span class="count-pill">{{ rasterLayers.length }}</span>
+              </div>
+
+              <div v-if="!rasterLayers.length" class="empty-hint">
+                File raster tidak ditemukan.
+              </div>
+
+              <div v-for="cat in rasterCategories" :key="cat.name" class="raster-category">
+                <button
+                  type="button"
+                  class="category-header"
+                  :aria-expanded="!!expandedCategories[cat.name]"
+                  @click="toggleCategory(cat.name)"
+                >
+                  <svg
+                    :class="['category-arrow', expandedCategories[cat.name] ? 'open' : '']"
+                    width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                  ><path d="M6 9l6 6 6-6"/></svg>
+                  <span class="category-name">{{ cat.name }}</span>
+                  <span v-if="cat.hasLoading" class="category-dot loading"></span>
+                  <span v-else-if="cat.hasActive" class="category-dot active"></span>
+                  <span class="category-count">{{ cat.items.length }} layer</span>
                 </button>
 
-                <div v-if="raster.loading" class="raster-progress">
-                  <div class="raster-progress-bar"></div>
-                </div>
+                <div v-show="expandedCategories[cat.name]" class="category-body">
+                  <div class="year-grid">
+                    <button
+                      type="button"
+                      v-for="raster in cat.items"
+                      :key="raster.id"
+                      :class="['year-chip', raster.visible ? 'active' : '', raster.loading ? 'loading' : '']"
+                      :aria-pressed="raster.visible"
+                      :title="raster.name + (raster.loading ? ' — memuat… (klik untuk batal)' : raster.visible ? ' — aktif, klik untuk sembunyikan' : ' — klik untuk tampilkan')"
+                      @click="toggleRaster(raster)"
+                    >
+                      <span v-if="raster.loading" class="spinner"></span>
+                      <span class="chip-text">{{ chipLabel(raster) }}</span>
+                    </button>
+                  </div>
 
-                <div class="raster-opacity">
-                  <span>OPACITY</span>
-                  <input type="range" min="0" max="100" :value="raster.opacity"
-                         @input="changeRasterOpacity(raster, $event)" />
-                  <span>{{ raster.opacity }}%</span>
-                </div>
+                  <div v-if="cat.activeItem" :class="['raster-active', cat.activeItem.loading ? 'loading' : '']">
+                    <div class="raster-active-head">
+                      <span class="raster-active-name">
+                        <span class="raster-dot"></span>{{ cat.activeItem.name }}
+                      </span>
+                      <span class="raster-active-state">
+                        {{ cat.activeItem.loading ? 'Memuat…' : 'Aktif' }}
+                      </span>
+                    </div>
 
-                <div v-if="raster.error" class="raster-error">{{ raster.error }}</div>
+                    <div v-if="cat.activeItem.loading" class="raster-progress">
+                      <div class="raster-progress-bar"></div>
+                    </div>
+
+                    <label class="raster-opacity">
+                      <span class="raster-opacity-label">Opasitas</span>
+                      <input
+                        type="range" min="0" max="100"
+                        :value="cat.activeItem.opacity"
+                        aria-label="Opasitas raster"
+                        @input="changeRasterOpacity(cat.activeItem, $event)"
+                      />
+                      <span class="raster-opacity-val">{{ cat.activeItem.opacity }}%</span>
+                    </label>
+                  </div>
+
+                  <div
+                    v-for="raster in cat.items.filter(r => r.error)"
+                    :key="raster.id + '-error'"
+                    class="raster-error"
+                  >
+                    {{ raster.name }}: {{ raster.error }}
+                  </div>
+                </div>
               </div>
-            </div>
+            </section>
           </div>
 
-          <div v-if="activeLayer" class="sidebar-footer">
-            <div class="footer-label">ACTIVE LAYER</div>
-            <div class="footer-name" :style="{ color: activeLayer.color }">{{ activeLayer.name }}</div>
-            <div class="footer-count">{{ activeLayer.geojson?.features?.length || 0 }} features</div>
-            <button class="export-btn" @click="exportLayer(activeLayer)">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style="vertical-align:middle;margin-right:5px"><polyline points="4,6 7,9 10,6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="2" x2="7" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M2 11h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-              EXPORT SHP
+          <footer v-if="activeLayer" class="sidebar-footer">
+            <div class="footer-row">
+              <span class="section-title">Layer aktif</span>
+              <span class="footer-info">
+                <span class="footer-name" :style="{ color: activeLayer.color }">{{ activeLayer.name }}</span>
+                · {{ activeLayer.geojson?.features?.length || 0 }} fitur
+              </span>
+            </div>
+            <button type="button" class="export-btn" @click="exportLayer(activeLayer)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/></svg>
+              Ekspor SHP
             </button>
-          </div>
-        </div>
+          </footer>
+        </aside>
       </transition>
 
       <!-- ── MAP ── -->
       <div class="map-wrap">
         <div ref="mapEl" class="map" />
 
-        <!-- Status bar -->
-        <div class="statusbar">
-          <span :class="['status-dot', status !== 'Ready' ? 'active' : '']">⬤</span>
-          <span>{{ status }}</span>
-          <span v-if="drawMode" class="draw-mode-tag">DRAW: {{ drawMode.toUpperCase() }}</span>
-        </div>
-      </div>
+        <!-- Floating drawing toolbar -->
+        <div class="map-toolbar" role="toolbar" aria-label="Alat gambar">
+          <div class="tool-group">
+            <ToolbarBtn icon="point"   label="Titik"   :active="drawMode === 'point'"   @click="toggleDraw('point')" />
+            <ToolbarBtn icon="line"    label="Garis"   :active="drawMode === 'line'"    @click="toggleDraw('line')" />
+            <ToolbarBtn icon="polygon" label="Poligon" :active="drawMode === 'polygon'" @click="toggleDraw('polygon')" />
 
-      <!-- ── RIGHT SIDEBAR: LEGEND ── -->
-      <aside class="legend-sidebar">
-        <div class="sidebar-header">LEGEND</div>
+            <div class="tool-sep" />
 
-        <div class="legend-body">
-          <!-- Legenda SHP yang aktif (selalu paling atas) -->
-          <div class="legend-block">
-            <div class="legend-title">Vector Layers</div>
-
-            <div v-for="layer in visibleVectorLayers" :key="layer.id" class="legend-item">
-              <span class="legend-symbol"
-                    :style="{ background: layer.color + '40', borderColor: layer.color }"></span>
-              <span class="legend-label">{{ layer.name }}</span>
-            </div>
-
-            <div v-if="!visibleVectorLayers.length" class="legend-empty">No visible layers</div>
+            <ToolbarBtn icon="vertex" label="Vertex"      :active="showVertices" @click="showVertices = !showVertices" />
+            <ToolbarBtn icon="edit"   label="Hapus fitur" :active="editMode"     @click="toggleEditMode" />
+            <ToolbarBtn v-if="activeLayer" icon="clear" label="Bersihkan" @click="clearActiveLayer" />
           </div>
 
-          <!-- Legenda raster (muncul sesuai raster yang aktif) -->
+          <span v-if="drawMode" class="draw-hint">
+            {{ drawMode === 'point' ? 'Klik peta untuk menaruh titik' : 'Klik untuk menambah vertex • Klik tengah mouse untuk menyelesaikan' }}
+          </span>
+
+          <div class="tool-spacer" />
+
+          <div v-if="activeRaster" class="layer-badge">
+            <span class="raster-dot"></span>
+            <span>{{ activeRaster.category }} · {{ chipLabel(activeRaster) }}</span>
+            <small>opasitas {{ activeRaster.opacity }}%</small>
+          </div>
+        </div>
+
+        <!-- Floating legend -->
+        <div v-if="rasterLegend || visibleVectorLayers.length" class="map-legend">
           <div v-if="rasterLegend" class="legend-block">
             <div class="legend-title">{{ rasterLegend.title }}</div>
-
             <div v-for="item in rasterLegend.items" :key="item.label" class="legend-item">
               <span class="legend-symbol" :style="{ background: item.color }"></span>
               <span class="legend-label">{{ item.label }}</span>
             </div>
           </div>
+
+          <div v-if="visibleVectorLayers.length" class="legend-block">
+            <div v-for="layer in visibleVectorLayers" :key="layer.id" class="legend-item">
+              <span class="legend-symbol legend-symbol--vector"
+                    :style="{ background: layer.color + '33', borderColor: layer.color }"></span>
+              <span class="legend-label">{{ layer.name }}</span>
+            </div>
+          </div>
         </div>
-      </aside>
 
-
+        <!-- Status bar -->
+        <div class="statusbar">
+          <span :class="['status-dot', status !== 'Ready' ? 'active' : '']"></span>
+          <span>{{ status }}</span>
+          <span v-if="drawMode" class="draw-mode-tag">DRAW: {{ drawMode.toUpperCase() }}</span>
+        </div>
+      </div>
 
     </div>
   </div>
@@ -309,16 +372,19 @@ async function loadDefaultVectorLayer() {
 
 const rasterLayers = ref([])
 
-const rasterModules = import.meta.glob('/src/rasters/*.tif', {
+const rasterModules = import.meta.glob('/src/rasters/*/*.{tif,tiff}', {
   eager: true,
   query: '?url',
   import: 'default'
 })
 
-const availableRasters = Object.entries(rasterModules).map(([path, url]) => ({
-  name: path.split('/').pop(),
-  url
-}))
+// path: /src/rasters/[kategori]/[file].tif
+const availableRasters = Object.entries(rasterModules).map(([path, url]) => {
+  const parts = path.split('/')
+  const name = parts[parts.length - 1]
+  const category = parts[parts.length - 2]
+  return { id: `${category}/${name}`, category, name, url }
+})
 
 // Fix Leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl
@@ -345,6 +411,21 @@ const sidebarOpen    = ref(true)
 const basemapOpen    = ref(false)
 const showVertices   = ref(false)
 const status         = ref('Ready')
+
+// ── Tema (terang / gelap) ─────────────────────────────────
+const THEME_KEY = 'spth-theme'
+function getInitialTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY)
+    if (saved === 'light' || saved === 'dark') return saved
+  } catch (e) {}
+  return 'dark'
+}
+const theme = ref(getInitialTheme())
+function setTheme(t) {
+  theme.value = t
+  try { localStorage.setItem(THEME_KEY, t) } catch (e) {}
+}
 
 const CARTO_API_KEY = 'cb1_50tf_1_be0caefafd2cfc3cd17d2f77'
 
@@ -385,7 +466,16 @@ const basemaps = [
     attribution: '© Esri'
   },
 ]
-const currentBasemap = ref(basemaps[0])
+const currentBasemap = ref(basemaps.find(b => b.id === theme.value) || basemaps[0])
+
+// Ikuti tema: kalau basemap yang dipakai Dark/Light, ikut berganti
+watch(theme, (t, prev) => {
+  if (map && currentBasemap.value.id === prev) {
+    const bm = basemaps.find(b => b.id === t)
+    if (bm) setBasemap(bm)
+  }
+  if (showVertices.value) layers.value.forEach(l => syncLeafletLayer(l.id))
+})
 
 let map = null
 let baseTileLayer = null
@@ -409,9 +499,12 @@ const displayedLayers = computed(() => {
 })
 
 // ── Legend ────────────────────────────────────────────────
+
+const activeRaster = computed(() => rasterLayers.value.find(r => r.visible) || null)
+
 const RASTER_LEGENDS = {
   ndvi: {
-    title: 'NDVI Classification',
+    title: 'Klasifikasi NDVI',
     items: [
       { color: '#a52a2a', label: 'Non Vegetasi' },
       { color: '#ffff00', label: 'Vegetasi Sangat Rendah' },
@@ -421,25 +514,49 @@ const RASTER_LEGENDS = {
     ],
   },
   change: {
-    title: 'NDVI Change',
+    title: 'Perubahan Berdasarkan NDVI',
     items: [
       { color: '#ff0000', label: 'Vegetasi Hilang' },
       { color: '#ffffff', label: 'Vegetasi Stabil' },
       { color: '#008000', label: 'Vegetasi Bertambah' },
     ],
   },
+  tutupan_lahan: {
+    title: 'Tutupan Lahan',
+    items: [
+      { color: '#1a5bab', label: 'Air' },
+      { color: '#358221', label: 'Pohon' },
+      { color: '#87d19e', label: 'Vegetasi Tergenang' },
+      { color: '#ffdb5c', label: 'Lahan Pertanian' },
+      { color: '#ed022a', label: 'Area Terbangun' },
+      { color: '#ede9e3', label: 'Lahan Terbuka' },
+    ],
+  },
 }
 
-const activeRaster = computed(() => rasterLayers.value.find(r => r.visible) || null)
+// Urutan penting: "change" dicek lebih dulu, karena nama seperti
+// "ndvi_change_2023" mengandung kata "ndvi" juga.
+const LEGEND_RULES = [
+  { key: 'tutupan_lahan', keywords: ['tutupan lahan', 'tutupan', 'landcover', 'land cover', 'lulc'] },
+  { key: 'change',        keywords: ['change', 'cumulative', 'perubahan'] },
+  { key: 'ndvi',          keywords: ['ndvi'] },
+]
 
 const rasterLegend = computed(() => {
-  const name = activeRaster.value?.name?.toLowerCase()
-  if (!name) return null
-  if (name.startsWith('ndvi')) return RASTER_LEGENDS.ndvi
-  if (name.startsWith('change') || name.startsWith('cumulative')) return RASTER_LEGENDS.change
-  return null
-})
+  const r = activeRaster.value
+  if (!r) return null
 
+  // Samakan underscore/strip jadi spasi, supaya "tutupan_lahan" dan
+  // "Tutupan-Lahan" tetap cocok dengan keyword "tutupan lahan"
+  const text = `${r.category} ${r.name}`
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+
+  const rule = LEGEND_RULES.find(rule =>
+    rule.keywords.some(k => text.includes(k))
+  )
+  return rule ? RASTER_LEGENDS[rule.key] : null
+})
 const visibleVectorLayers = computed(() => displayedLayers.value.filter(l => l.visible))
 
 // ── Status helper ─────────────────────────────────────────────────────────────
@@ -548,17 +665,51 @@ function setBasemap(bm) {
 
 // ── RASTER FUNCTIONS ──────────────────────────────────────
 
+const expandedCategories = ref({})
+
 function initializeRasterLayers() {
   rasterLayers.value = availableRasters.map(raster => ({
-  name: raster.name,
-  url: raster.url,
-  georaster: null,
-  layer: null,
-  visible: false,
-  loading: false,
-  error: null,
-  opacity: 80
-}))
+    id: raster.id,
+    category: raster.category,
+    name: raster.name,
+    url: raster.url,
+    georaster: null,
+    layer: null,
+    visible: false,
+    loading: false,
+    error: null,
+    opacity: 80
+  }))
+
+  // buka kategori pertama secara default
+  const first = rasterLayers.value[0]?.category
+  if (first) expandedCategories.value[first] = true
+}
+
+// Kelompokkan raster per kategori (folder)
+const rasterCategories = computed(() => {
+  const groups = {}
+  rasterLayers.value.forEach(r => {
+    (groups[r.category] ||= []).push(r)
+  })
+  return Object.entries(groups)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, items]) => ({
+      name,
+      items: items.sort((a, b) => a.name.localeCompare(b.name)),
+      hasActive: items.some(i => i.visible),
+      hasLoading: items.some(i => i.loading),
+      activeItem: items.find(i => i.visible || i.loading) || null,
+    }))
+})
+
+function toggleCategory(name) {
+  expandedCategories.value[name] = !expandedCategories.value[name]
+}
+
+// Label chip: nama file tanpa ekstensi (2021.tif -> 2021)
+function chipLabel(raster) {
+  return raster.name.replace(/\.(tif|tiff)$/i, '')
 }
 
 let rasterRequestId = 0 // penanda request terbaru (untuk membatalkan load yang basi)
@@ -885,7 +1036,7 @@ function syncLeafletLayer(id) {
           ? ring.slice(0, -1) : ring
         pts.forEach(([lng, lat]) => {
           L.circleMarker([lat, lng], {
-            radius: 3, color: layer.color, fillColor: '#0a0e14',
+            radius: 3, color: layer.color, fillColor: theme.value === 'light' ? '#ffffff' : '#0a0e14',
             fillOpacity: 1, weight: 1.5, interactive: false,
           }).addTo(gLayer)
         })
@@ -1112,20 +1263,31 @@ function geojsonToShapefile(geojson) {
 // LayerItem and ToolbarBtn are defined as local components
 import { defineComponent, h, ref } from 'vue'
 
+const svg = (inner, size = 16) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`
+
 export const LayerItem = defineComponent({
   props: ['layer','isActive','color'],
   emits: ['select','toggle','remove','zoom','rename'],
   setup(props, { emit }) {
-    const typeIcon = {
-      Point:`<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg>`,
-      MultiPoint:`<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg>`,
-      LineString:`<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="2" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="2" r="1.5" fill="currentColor"/></svg>`,
-      MultiLineString:`<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="2" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="2" r="1.5" fill="currentColor"/></svg>`,
-      Polygon:`<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><polygon points="7,1.5 12.5,5 12.5,9 7,12.5 1.5,9 1.5,5" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.2"/></svg>`,
-      MultiPolygon:`<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><polygon points="7,1.5 12.5,5 12.5,9 7,12.5 1.5,9 1.5,5" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.2"/></svg>`,
+    const geomLabel = {
+      Point: 'titik', MultiPoint: 'titik',
+      LineString: 'garis', MultiLineString: 'garis',
+      Polygon: 'poligon', MultiPolygon: 'poligon',
     }
-    const fallbackIcon = `<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>`
-    const icon = () => typeIcon[props.layer.geojson?.features?.[0]?.geometry?.type] || fallbackIcon
+    const count = () => props.layer.geojson?.features?.length || 0
+    const meta = () => {
+      const t = geomLabel[props.layer.geojson?.features?.[0]?.geometry?.type]
+      return t ? `${count()} fitur · ${t}` : `${count()} fitur`
+    }
+
+    const icons = {
+      zoom:   svg('<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>'),
+      eye:    svg('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+      eyeOff: svg('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/>'),
+      trash:  svg('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'),
+    }
+
     const editing = ref(false)
     const editVal = ref('')
 
@@ -1151,36 +1313,53 @@ export const LayerItem = defineComponent({
 
     return () => h('div', {
       class: ['layer-item', props.isActive ? 'active' : ''],
-      style: { borderLeftColor: props.isActive ? props.color : 'transparent' },
       'data-layer-id': props.layer.id,
       onClick: () => emit('select'),
     }, [
-      h('span', { style: { color: props.color, fontSize:'14px', minWidth:'16px', display:'flex', alignItems:'center' }, innerHTML: icon() }),
-      editing.value
-        ? h('input', {
-            class: 'rename-input',
-            value: editVal.value,
-            onInput: (e) => { editVal.value = e.target.value },
-            onKeydown: (e) => {
-              if (e.key === 'Enter') commitRename()
-              if (e.key === 'Escape') cancelRename()
-              e.stopPropagation()
-            },
-            onBlur: commitRename,
-            onClick: (e) => e.stopPropagation(),
-            style: { flex:1, background:'#1c2333', border:'1px solid #00e5ff', color:'#e0e0e0',
-              fontFamily:'IBM Plex Mono,monospace', fontSize:'12px', padding:'1px 4px', borderRadius:'3px' }
-          })
-        : h('span', {
-            class:'layer-name',
-            style:{ color: props.layer.visible ? '#e0e0e0' : '#555' },
-            title: 'Double-click to rename',
-            onDblclick: startRename,
-          }, props.layer.name),
-      h('span', { class:'layer-count' }, props.layer.geojson?.features?.length || 0),
-      h('button', { class:'icon-btn', title:'Zoom', onClick:(e)=>{e.stopPropagation();emit('zoom')}, innerHTML:`<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.3"/><line x1="9.2" y1="9.2" x2="12" y2="12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="6" y1="4" x2="6" y2="8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="4" y1="6" x2="8" y2="6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>` }),
-      h('button', { class:'icon-btn', style:{color: props.layer.visible ? props.color : '#444'}, title:'Toggle', onClick:(e)=>{e.stopPropagation();emit('toggle')}, innerHTML: props.layer.visible ? `<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><ellipse cx="7" cy="7" rx="5.5" ry="3.5" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="7" r="2" fill="currentColor"/></svg>` : `<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><ellipse cx="7" cy="7" rx="5.5" ry="3.5" stroke="currentColor" stroke-width="1.3"/><line x1="2" y1="2" x2="12" y2="12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>` }),
-      h('button', { class:'icon-btn red', title:'Remove', onClick:(e)=>{e.stopPropagation();emit('remove')}, innerHTML:`<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><polyline points="2,4 12,4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 4V3h4v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4l1 8h6l1-8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>` }),
+      h('span', {
+        class: 'layer-chip',
+        style: { borderColor: props.color, background: props.color + '40' },
+      }),
+      h('div', { class: 'layer-text' }, [
+        editing.value
+          ? h('input', {
+              class: 'rename-input',
+              value: editVal.value,
+              onInput: (e) => { editVal.value = e.target.value },
+              onKeydown: (e) => {
+                if (e.key === 'Enter') commitRename()
+                if (e.key === 'Escape') cancelRename()
+                e.stopPropagation()
+              },
+              onBlur: commitRename,
+              onClick: (e) => e.stopPropagation(),
+            })
+          : h('span', {
+              class: ['layer-name', props.layer.visible ? '' : 'is-hidden'],
+              title: 'Klik dua kali untuk ganti nama',
+              onDblclick: startRename,
+            }, props.layer.name),
+        h('span', { class: 'layer-meta' }, meta()),
+      ]),
+      h('button', {
+        type: 'button', class: 'icon-btn',
+        title: 'Zoom ke layer', 'aria-label': `Zoom ke ${props.layer.name}`,
+        onClick: (e) => { e.stopPropagation(); emit('zoom') },
+        innerHTML: icons.zoom,
+      }),
+      h('button', {
+        type: 'button', class: ['icon-btn', props.layer.visible ? 'on' : ''],
+        title: props.layer.visible ? 'Sembunyikan layer' : 'Tampilkan layer',
+        'aria-label': props.layer.visible ? `Sembunyikan ${props.layer.name}` : `Tampilkan ${props.layer.name}`,
+        onClick: (e) => { e.stopPropagation(); emit('toggle') },
+        innerHTML: props.layer.visible ? icons.eye : icons.eyeOff,
+      }),
+      h('button', {
+        type: 'button', class: 'icon-btn red',
+        title: 'Hapus layer', 'aria-label': `Hapus ${props.layer.name}`,
+        onClick: (e) => { e.stopPropagation(); emit('remove') },
+        innerHTML: icons.trash,
+      }),
     ])
   }
 })
@@ -1189,37 +1368,34 @@ export const ToolbarBtn = defineComponent({
   props: ['icon','label','active','color'],
   emits: ['click'],
   setup(props, { emit }) {
-    const hover = ref(false)
-
     const svgIcons = {
-      point: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg>`,
-      line: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="2" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="2" r="1.5" fill="currentColor"/></svg>`,
-      polygon: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="7,1.5 12.5,5 12.5,9 7,12.5 1.5,9 1.5,5" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.18"/></svg>`,
-      edit: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 2.5l2 2-7 7H2.5v-2l7-7z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="4" x2="10" y2="6" stroke="currentColor" stroke-width="1.3"/></svg>`,
-      clear: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="3" y1="3" x2="11" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="11" y1="3" x2="3" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-      import: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="4,6 7,9 10,6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="2" x2="7" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M2 11h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-      newlayer: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="4" width="8" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="4" y="2" width="8" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><line x1="9" y1="8" x2="9" y2="12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="10" x2="11" y2="10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
-      vertex: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="2,11 5,4 9,8 12,3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="2" cy="11" r="1.8" fill="currentColor"/><circle cx="5" cy="4" r="1.8" fill="currentColor"/><circle cx="9" cy="8" r="1.8" fill="currentColor"/><circle cx="12" cy="3" r="1.8" fill="currentColor"/></svg>`,
-      'sidebar-open': `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1.5" y="1.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><line x1="5" y1="1.5" x2="5" y2="12.5" stroke="currentColor" stroke-width="1.3"/><polyline points="9,5 7,7 9,9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      point:   svg('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>'),
+      line:    svg('<path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.5"/><circle cx="19" cy="5" r="1.5"/>'),
+      polygon: svg('<path d="M12 3l8 6-3 11H7L4 9l8-6z"/>'),
+      edit:    svg('<path d="M7 20h13M5 14l8-8 6 6-6 6H8l-3-4z"/>'),
+      clear:   svg('<path d="M6 6l12 12M18 6L6 18"/>'),
+      import:  svg('<path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/>'),
+      newlayer: svg('<path d="M12 5v14M5 12h14"/>'),
+      vertex:  svg('<path d="M4 18l5-9 5 6 6-9"/><circle cx="4" cy="18" r="1.5"/><circle cx="9" cy="9" r="1.5"/><circle cx="14" cy="15" r="1.5"/><circle cx="20" cy="6" r="1.5"/>'),
+      'sidebar-open': svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 9l-3 3 3 3"/>'),
     }
 
     return () => h('button', {
+      type: 'button',
       class: ['toolbar-btn', props.active ? 'toolbar-btn--active' : ''],
-      style: { color: props.active ? (props.color || '#00e5ff') : hover.value ? (props.color||'#c9d1d9') : '#888' },
       title: props.label,
+      'aria-pressed': props.active === undefined ? undefined : !!props.active,
       onClick: () => emit('click'),
-      onMouseenter: () => (hover.value = true),
-      onMouseleave: () => (hover.value = false),
     }, [
-      h('span', { class: 'btn-icon', innerHTML: svgIcons[props.icon] || props.icon, style:{display:'flex',alignItems:'center'} }),
-      h('span', { style:{fontSize:'11px',letterSpacing:'0.5px'} }, props.label),
+      h('span', { class: 'btn-icon', innerHTML: svgIcons[props.icon] || props.icon }),
+      h('span', { class: 'btn-label' }, props.label),
     ])
   }
 })
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1255,218 +1431,327 @@ export const ToolbarBtn = defineComponent({
   border-top: 1px solid #1c2333; padding-top: 12px; width: 100%;
 }
 
-/* Sidebar action buttons stacked vertically */
-.sidebar-actions {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 6px 8px; border-bottom: 1px solid #1c2333;
-}
-.sidebar-actions .toolbar-btn {
-  width: 100%; justify-content: flex-start;
-  border: 1px solid rgba(255,255,255,0.06) !important;
-  border-radius: 4px;
-  padding: 5px 10px;
-}
-.sidebar-actions .toolbar-btn:hover {
-  border-color: rgba(255,255,255,0.12) !important;
-  background: rgba(255,255,255,0.04);
-}
-
+/* Root + design tokens */
 .gis-root {
+  --bg: #0b110f;
+  --panel: #121916;
+  --panel-2: #18211e;
+  --line: #25312d;
+  --text: #e7f0ea;
+  --muted: #93a69c;
+  --accent: #2dd4bf;
+  --accent-hi: #5eead4;
+  --accent-bg: #0f2f2a;
+  --accent-line: #1f6e63;
+  --glass: rgba(18, 25, 22, 0.92);
+  --glass-strong: rgba(18, 25, 22, 0.94);
+  --card: #151d1a;
+  --card-hover: #35453f;
+  --hover: rgba(255, 255, 255, 0.06);
+  --dot-idle: #3a4a44;
+  --on-accent: #04201b;
+  --warn: #ffb84d;
+  --danger: #ff6b6b;
+  --err: #ff8a8a;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --legend-border: rgba(255, 255, 255, 0.2);
+  --font: 'IBM Plex Sans', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', 'Courier New', monospace;
+
   display: flex; flex-direction: column;
   height: 100vh; width: 100%;
-  background: #0a0e14;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
-  color: #c9d1d9; overflow: hidden;
+  background: var(--bg);
+  font-family: var(--font);
+  font-size: 13px; line-height: 1.4;
+  color: var(--text); overflow: hidden;
 }
 
-/* Toolbar */
-.toolbar {
-  display: flex; align-items: center; gap: 6px;
-  padding: 0 16px; height: 48px;
-  background: #0d1117;
-  border-bottom: 1px solid #1c2333;
-  flex-shrink: 0; z-index: 1000;
+/* Tema terang */
+.gis-root[data-theme='light'] {
+  --bg: #eef3f0;
+  --panel: #ffffff;
+  --panel-2: #f1f5f3;
+  --line: #d5dfda;
+  --text: #14201b;
+  --muted: #566a60;
+  --accent: #0f766e;
+  --accent-hi: #0b5f58;
+  --accent-bg: #d9f3ee;
+  --accent-line: #7cc9bd;
+  --glass: rgba(255, 255, 255, 0.92);
+  --glass-strong: rgba(255, 255, 255, 0.95);
+  --card: #f7faf8;
+  --card-hover: #bccbc4;
+  --hover: rgba(20, 32, 27, 0.06);
+  --dot-idle: #b7c4be;
+  --on-accent: #ffffff;
+  --warn: #b45309;
+  --danger: #dc2626;
+  --err: #b91c1c;
+  --shadow: 0 12px 32px rgba(20, 32, 27, 0.18);
+  --legend-border: rgba(0, 0, 0, 0.2);
 }
-.brand { color: #00e5ff; font-weight: 700; font-size: 15px; letter-spacing: 2px; margin-right: 8px; }
-.divider { width: 1px; height: 24px; background: #1c2333; margin: 0 4px; }
-.draw-hint { font-size: 11px; color: #666; margin-left: 6px; }
+
+/* Top bar */
+.topbar {
+  position: relative; z-index: 1100;
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 16px; height: 56px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.brand {
+  display: flex; align-items: center;
+  height: 100%; gap: 8px; padding: 8px 0;
+}
+.brand img { height: 100%; object-fit: contain; min-width: 0; }
+.topbar-spacer { flex: 1; }
 
 /* Body */
-.body { display: flex; flex: 1; overflow: hidden; }
+.body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
 /* Sidebar */
 .sidebar {
-  width: 260px; background: #0d1117;
-  border-right: 1px solid #1c2333;
+  width: 320px; background: var(--panel);
+  border-right: 1px solid var(--line);
   display: flex; flex-direction: column; flex-shrink: 0;
-  overflow-y: auto;
+  min-height: 0;
 }
-.sidebar-header {
-  padding: 10px 12px 6px; font-size: 10px;
-  color: #444; letter-spacing: 2px;
-  border-bottom: 1px solid #1c2333;
+.sidebar-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+.panel-section {
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+  border-bottom: 1px solid var(--line);
 }
-.layer-list { flex: 1; min-height: 80px; overflow-y: auto; }
+.section-head { display: flex; align-items: center; justify-content: space-between; }
+.section-title {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted);
+}
+.count-pill {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  background: var(--panel-2); border-radius: 10px; padding: 1px 8px;
+}
+.action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.layer-list { display: flex; flex-direction: column; gap: 8px; }
 .empty-hint {
-  padding: 20px 12px; font-size: 11px;
-  color: #333; text-align: center; line-height: 1.8;
+  padding: 14px 12px; font-size: 12px;
+  color: var(--muted); text-align: center; line-height: 1.7;
+  border: 1px dashed var(--line); border-radius: 10px;
 }
+
 .sidebar-footer {
-  padding: 8px 10px; border-top: 1px solid #1c2333; font-size: 11px;
+  padding: 16px; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
 }
-.footer-label { color: #444; letter-spacing: 1px; margin-bottom: 4px; font-size: 10px; }
-.footer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.footer-count { color: #555; margin-top: 2px; }
+.footer-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.footer-info {
+  font-size: 12px; color: var(--text); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.footer-name { font-weight: 500; }
 .export-btn {
-  margin-top: 8px; width: 100%; padding: 5px 0;
-  background: rgba(255,64,129,0.1); border: 1px solid rgba(255,64,129,0.3);
-  border-radius: 3px; color: #ff4081; font-size: 11px; cursor: pointer;
-  letter-spacing: 1px; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; border: 0; border-radius: 8px;
+  background: var(--accent); color: var(--on-accent);
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.12s;
 }
-.export-btn:hover { background: rgba(255,64,129,0.2); }
+.export-btn:hover { background: var(--accent-hi); }
 
 /* Map */
-.map-wrap { flex: 1; position: relative; }
-.map { height: 100%; width: 100%; background: #0a0e14; }
+.map-wrap { flex: 1; position: relative; min-width: 0; }
+.map { height: 100%; width: 100%; background: var(--bg); }
+
+.map-toolbar {
+  position: absolute; top: 16px; left: 16px; right: 16px;
+  z-index: 1000;
+  display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px;
+  pointer-events: none;
+}
+.map-toolbar > * { pointer-events: auto; }
+.tool-group {
+  display: flex; align-items: center; gap: 2px; padding: 4px;
+  border-radius: 12px; background: var(--glass);
+  border: 1px solid var(--line); backdrop-filter: blur(6px);
+}
+.tool-sep { width: 1px; height: 22px; background: var(--line); margin: 0 6px; }
+.tool-spacer { flex: 1 1 0; }
+.draw-hint, .layer-badge {
+  display: flex; align-items: center; gap: 10px;
+  height: 44px; padding: 0 14px; border-radius: 12px;
+  background: var(--glass); border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+}
+.draw-hint { font-size: 12px; color: var(--muted); }
+.layer-badge { font-weight: 500; }
+.layer-badge small { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--muted); }
+
 .statusbar {
   position: absolute; bottom: 0; left: 0; right: 0;
-  display: flex; align-items: center; gap: 10px;
-  padding: 4px 12px; background: rgba(13,17,23,0.85);
-  border-top: 1px solid #1c2333; font-size: 11px; color: #555;
+  display: flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 16px;
+  background: var(--glass);
+  border-top: 1px solid var(--line);
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
   z-index: 1000; backdrop-filter: blur(4px);
 }
-.status-dot { color: #1c2333; }
-.status-dot.active { color: #00e5ff; }
-.draw-mode-tag { margin-left: auto; color: #ff9100; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot-idle); flex-shrink: 0; }
+.status-dot.active { background: var(--accent); }
+.draw-mode-tag { margin-left: auto; color: var(--warn); }
 
 /* Sidebar slide transition */
 .slide-enter-active, .slide-leave-active { transition: width 0.2s ease, opacity 0.2s ease; }
 .slide-enter-from, .slide-leave-to { width: 0; opacity: 0; overflow: hidden; }
-.slide-enter-to, .slide-leave-from { width: 260px; opacity: 1; }
+.slide-enter-to, .slide-leave-from { width: 320px; opacity: 1; }
 
 /* Basemap picker */
 .basemap-picker { position: relative; }
 .basemap-dropdown {
-  position: absolute; top: calc(100% + 4px); right: 0;
-  background: #0d1117; border: 1px solid #1c2333;
-  border-radius: 6px; min-width: 140px; z-index: 2000;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-  overflow: hidden;
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; min-width: 168px; z-index: 2000; padding: 4px;
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
 }
 .basemap-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 12px; font-size: 12px; cursor: pointer;
-  color: #888; transition: background 0.12s, color 0.12s;
-  font-family: 'IBM Plex Mono', monospace;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border: 0; border-radius: 6px;
+  background: transparent; text-align: left;
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  color: var(--muted); transition: background 0.12s, color 0.12s;
 }
-.basemap-item:hover { background: rgba(255,255,255,0.05); color: #c9d1d9; }
-.basemap-item.active { color: #00e5ff; background: rgba(0,229,255,0.07); }
-.bm-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; border: 1px solid #333; }
+.basemap-item:hover { background: var(--hover); color: var(--text); }
+.basemap-item.active { color: var(--accent-hi); background: var(--accent-bg); }
+.bm-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--line); }
 </style>
 
-<!-- Global styles for layer items, toolbar btns, leaflet popup -->
+<!-- Global styles for layer items, toolbar btns, raster manager, legend, leaflet -->
 <style>
-.layer-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; cursor: pointer; transition: all 0.15s;
-  border-left: 3px solid transparent;
-  border-radius: 0 4px 4px 0;
-}
-.layer-item:hover { background: rgba(255,255,255,0.03); }
-.layer-item.active { background: rgba(0,229,255,0.06); }
-.layer-name {
-  flex: 1; font-size: 12px; font-family: 'IBM Plex Mono', monospace;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.layer-count { font-size: 10px; color: #444; min-width: 20px; text-align: right; }
-.icon-btn {
-  background: none; border: none; cursor: pointer;
-  color: #666; font-size: 13px; padding: 0 2px;
-  font-family: inherit; line-height: 1;
-}
-.icon-btn:hover { color: #aaa; }
-.icon-btn.red:hover { color: #ff4444; }
+/* Buttons & inputs inherit the app font */
+.gis-root button, .gis-root input { font-family: inherit; }
 
 .toolbar-btn {
-  display: flex; align-items: center; gap: 5px;
-  padding: 4px 10px; border: 1px solid rgba(255,255,255,0.07); border-radius: 4px;
-  background: transparent; cursor: pointer; font-size: 12px;
-  font-family: 'IBM Plex Mono', monospace; transition: all 0.12s;
+  display: flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px;
+  border: 1px solid transparent; border-radius: 8px;
+  background: transparent; color: var(--text);
+  font-size: 13px; white-space: nowrap; cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
-.toolbar-btn:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.13); }
-.toolbar-btn--active { background: rgba(0,229,255,0.1); border-color: rgba(0,229,255,0.35) !important; outline: none; }
+.toolbar-btn:hover { background: var(--hover); }
+.toolbar-btn--active { background: var(--accent-bg); border-color: var(--accent-line); color: var(--accent-hi); }
+.toolbar-btn--solid,
+.action-grid .toolbar-btn { background: var(--panel-2); border-color: var(--line); }
+.action-grid .toolbar-btn { justify-content: center; }
+.btn-icon { display: flex; align-items: center; }
 
-.edit-marker { cursor: pointer !important; }
-
-.rename-input:focus { outline: none; }
-
-.popup-content {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px; background: #0d1117;
-  color: #c9d1d9; padding: 4px;
-}
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip { background: #0d1117; border: 1px solid #1c2333; color: #c9d1d9; }
-
-/* ───────────── RASTER MANAGER ───────────── */
-
-.raster-section {
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid #1c2333;
-  border-bottom: 1px solid #1c2333;
+.toolbar-btn:focus-visible, .year-chip:focus-visible, .icon-btn:focus-visible,
+.export-btn:focus-visible, .category-header:focus-visible, .basemap-item:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
 }
 
-.raster-list {
-  max-height: 340px;
-  overflow-y: auto;
-}
-
-.raster-item {
-  padding: 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-.raster-item.active { background: rgba(0,229,255,0.06); }
-
-/* Tombol besar untuk aktivasi raster */
-.raster-btn {
-  width: 100%;
+/* Vector layer items */
+.layer-item {
   display: flex; align-items: center; gap: 12px;
-  padding: 14px 12px;
-  min-height: 56px;
-  background: #111822;
-  border: 1px solid #1c2333;
-  border-radius: 6px;
-  color: #c9d1d9;
-  font-family: 'IBM Plex Mono', monospace;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.15s;
+  padding: 10px 12px; cursor: pointer;
+  border-radius: 10px; background: var(--card);
+  border: 1px solid var(--line);
+  transition: background 0.15s, border-color 0.15s;
 }
-.raster-btn:hover { background: #172030; border-color: rgba(0,229,255,0.35); }
-.raster-item.active .raster-btn { border-color: #00e5ff; background: rgba(0,229,255,0.1); }
-.raster-item.loading .raster-btn { border-color: #ff9100; background: rgba(255,145,0,0.06); }
-
-.raster-btn-icon {
-  width: 28px; height: 28px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; color: #555;
-}
-.raster-item.active .raster-btn-icon { color: #00e5ff; }
-
-.raster-btn-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
-.raster-name {
-  font-size: 12px; font-weight: 600; color: #c9d1d9;
+.layer-item, .layer-item * { box-sizing: border-box; }
+.layer-item:hover { border-color: var(--card-hover); }
+.layer-item.active { background: var(--accent-bg); border-color: var(--accent-line); }
+.layer-chip { width: 14px; height: 14px; border-radius: 4px; border: 2px solid; flex-shrink: 0; }
+.layer-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.layer-name {
+  font-size: 13px; font-weight: 500; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.raster-state { font-size: 10px; color: #666; }
-.raster-item.active .raster-state  { color: #00e5ff; }
-.raster-item.loading .raster-state { color: #ff9100; }
+.layer-name.is-hidden { color: var(--muted); }
+.layer-meta { font-size: 11px; color: var(--muted); }
+.rename-input {
+  width: 100%; min-width: 0; padding: 2px 6px;
+  background: var(--panel-2); border: 1px solid var(--accent);
+  border-radius: 6px; color: var(--text); font-size: 13px; outline: none;
+}
+.icon-btn {
+  width: 28px; height: 28px; padding: 0; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; border-radius: 6px;
+  color: var(--muted); cursor: pointer; line-height: 1;
+}
+.icon-btn:hover { background: var(--hover); color: var(--text); }
+.icon-btn.on { color: var(--accent); }
+.icon-btn.red:hover { color: var(--danger); }
+
+/* Raster manager */
+.raster-category {
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); overflow: hidden;
+}
+.category-header {
+  width: 100%; height: 40px; padding: 0 12px;
+  display: flex; align-items: center; gap: 8px;
+  background: transparent; border: 0;
+  color: var(--text); font-size: 13px; font-weight: 500;
+  cursor: pointer; text-align: left;
+}
+.category-header:hover { background: var(--hover); }
+.category-arrow { color: var(--muted); flex-shrink: 0; transform: rotate(-90deg); transition: transform 0.15s; }
+.category-arrow.open { transform: none; }
+.category-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.category-count { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.category-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.category-dot.active  { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.category-dot.loading { background: #ff9100; }
+
+.category-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 12px; }
+
+.year-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.year-chip {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px; min-width: 0; padding: 0 6px;
+  border-radius: 8px; background: var(--panel-2);
+  border: 1px solid var(--line); color: var(--text);
+  font-family: var(--mono); font-size: 13px; cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.year-chip:hover { border-color: var(--accent-line); }
+.year-chip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent-hi); }
+.year-chip.loading { border-color: #ff9100; color: var(--warn); }
+
+.raster-active {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--accent-bg); border: 1px solid var(--accent-line);
+}
+.raster-active.loading { background: rgba(255,145,0,0.08); border-color: rgba(255,145,0,0.45); }
+.raster-active-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.raster-active-name {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.raster-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.raster-active.loading .raster-dot { background: #ff9100; }
+.raster-active-state { font-size: 11px; color: var(--accent-hi); }
+.raster-active.loading .raster-active-state { color: var(--warn); }
+
+.raster-opacity { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
+.raster-opacity-label { letter-spacing: 0.06em; text-transform: uppercase; }
+.raster-opacity input { flex: 1; min-width: 0; accent-color: var(--accent); cursor: pointer; }
+.raster-opacity-val { min-width: 32px; text-align: right; font-family: var(--mono); color: var(--text); }
+
+.raster-error { font-size: 11px; color: var(--err); line-height: 1.5; }
 
 /* Spinner loading */
 .spinner {
-  width: 20px; height: 20px;
-  border: 3px solid rgba(255,145,0,0.25);
+  width: 12px; height: 12px; flex-shrink: 0;
+  border: 2px solid rgba(255,145,0,0.25);
   border-top-color: #ff9100;
   border-radius: 50%;
   animation: raster-spin 0.8s linear infinite;
@@ -1474,10 +1759,7 @@ export const ToolbarBtn = defineComponent({
 @keyframes raster-spin { to { transform: rotate(360deg); } }
 
 /* Progress bar indeterminate */
-.raster-progress {
-  height: 3px; margin-top: 6px;
-  background: #1c2333; border-radius: 2px; overflow: hidden;
-}
+.raster-progress { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .raster-progress-bar {
   width: 40%; height: 100%; background: #ff9100;
   animation: raster-slide 1.1s ease-in-out infinite;
@@ -1487,134 +1769,72 @@ export const ToolbarBtn = defineComponent({
   100% { transform: translateX(250%); }
 }
 
-.raster-opacity {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 9px;
-  font-size: 9px;
-  color: #555;
-}
-.raster-opacity input {
-  flex: 1;
-  min-width: 0;
-  height: 3px;
-  accent-color: #00e5ff;
-  cursor: pointer;
-}
-.raster-opacity span:last-child {
-  min-width: 30px;
-  text-align: right;
-  color: #888;
-}
-
-.raster-error {
-  margin-top: 6px;
-  font-size: 10px;
-  color: #ff6464;
-  line-height: 1.5;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  
-  height: 100%;
-  gap: 8px;
-}
-
-.brand img {
-  
-  height: 100%;
-  object-fit: contain;
-  min-width: 0;
-}
-
+/* Floating legend */
 .map-legend {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 220px;
-  max-height: calc(100% - 40px);
-  overflow-y: auto;
-  z-index: 1000;
-
-  background: #172030;
-  color: #222222;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  position: absolute; left: 16px; bottom: 48px; z-index: 1000;
+  width: 224px; max-height: calc(100% - 140px); overflow-y: auto;
+  padding: 12px 14px; border-radius: 12px;
+  background: var(--glass-strong); border: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 10px;
 }
-
-.legend-header {
-  padding: 12px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  border-bottom: 1px solid #eeeeee;
-}
-
-.legend-content {
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-}
-
-.legend-symbol {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: 2px;
-}
-
-.legend-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.legend-empty {
-  font-size: 12px;
-  color: #999999;
-}
-
-/* ───────────── LEGEND SIDEBAR ───────────── */
-.legend-sidebar {
-  width: 240px; flex-shrink: 0;
-  background: #0d1117;
-  border-left: 1px solid #1c2333;
-  display: flex; flex-direction: column;
-  overflow-y: auto;
-}
-.legend-body { display: flex; flex-direction: column; }
-.legend-block {
-  padding: 12px;
-  border-bottom: 1px solid #1c2333;
-  display: flex; flex-direction: column; gap: 8px;
-}
+.legend-block { display: flex; flex-direction: column; gap: 8px; }
+.legend-block + .legend-block { padding-top: 10px; border-top: 1px solid var(--line); }
 .legend-title {
-  font-size: 12px; font-weight: 600; color: #c9d1d9;
-  margin-bottom: 2px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 2px;
 }
-.legend-item {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 11px; color: #9aa4b2;
-}
+.legend-item { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text); }
 .legend-symbol {
-  width: 16px; height: 16px; flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,0.35);
-  border-radius: 2px;
+  width: 14px; height: 14px; flex-shrink: 0;
+  border-radius: 4px; border: 1px solid var(--legend-border);
 }
-.legend-label {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.legend-symbol--vector { border-width: 2px; }
+.legend-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Leaflet controls in the same style */
+.gis-root .leaflet-bottom { margin-bottom: 40px; }
+.gis-root .leaflet-bar { border: 1px solid var(--line) !important; border-radius: 12px; overflow: hidden; box-shadow: none; }
+.gis-root .leaflet-bar a,
+.gis-root .leaflet-touch .leaflet-bar a {
+  width: 40px; height: 40px; line-height: 40px; font-size: 18px;
+  background: var(--glass-strong); color: var(--text);
+  border-bottom: 1px solid var(--line);
 }
-.legend-empty { font-size: 11px; color: #444; }
+.gis-root .leaflet-bar a:last-child { border-bottom: 0; }
+.gis-root .leaflet-bar a:hover { background: var(--panel-2); color: var(--accent-hi); }
+.gis-root .leaflet-control-attribution { background: var(--glass) !important; color: var(--muted); }
+.gis-root .leaflet-control-attribution a { color: var(--muted); }
+
+.edit-marker { cursor: pointer !important; }
+
+.popup-content {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; background: var(--panel);
+  color: var(--text); padding: 4px;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip { background: var(--panel); border: 1px solid var(--line); color: var(--text); }
+
+/* Pilihan tema */
+.theme-switch {
+  display: flex; gap: 2px; padding: 2px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+}
+.theme-opt {
+  display: flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 10px;
+  border: 0; border-radius: 8px; background: transparent;
+  color: var(--muted); font-size: 12px; cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.theme-opt:hover { color: var(--text); }
+.theme-opt.active { background: var(--accent-bg); color: var(--accent-hi); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.theme-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Raster tampil dengan pixel tajam (tanpa smoothing) */
+.leaflet-image-layer {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
 </style>
