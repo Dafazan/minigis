@@ -105,7 +105,33 @@
                 />
               </div>
             </section>
+<!-- BLOK -->
+<section class="panel-section">
+  <div class="section-head">
+    <span class="section-title">Blok</span>
+    <span class="count-pill">{{ blok.count }}</span>
+  </div>
 
+  <div v-if="!blok.geojson" class="empty-hint">Memuat data BLOK…</div>
+
+  <div v-else class="layer-item" style="cursor:default">
+    <span class="layer-chip" :style="{ borderColor: BLOK_COLOR, background: 'transparent' }"></span>
+    <div class="layer-text">
+      <span :class="['layer-name', blok.visible ? '' : 'is-hidden']">BLOK</span>
+      <span class="layer-meta">{{ blok.count }} fitur · poligon · klik untuk lihat data</span>
+    </div>
+    <button type="button" class="icon-btn" title="Zoom ke BLOK" aria-label="Zoom ke BLOK" @click="zoomToBlok">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+    </button>
+    <button type="button" :class="['icon-btn', blok.visible ? 'on' : '']"
+            :title="blok.visible ? 'Sembunyikan BLOK' : 'Tampilkan BLOK'"
+            :aria-label="blok.visible ? 'Sembunyikan BLOK' : 'Tampilkan BLOK'"
+            @click="toggleBlok">
+      <svg v-if="blok.visible" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>
+    </button>
+  </div>
+</section>
             <!-- RASTER MANAGER -->
             <section class="panel-section raster-section">
               <div class="section-head">
@@ -236,13 +262,16 @@
         </div>
 
         <!-- Floating legend -->
-        <div v-if="rasterLegend || visibleVectorLayers.length" class="map-legend">
+        <div v-if="rasterLegend || visibleVectorLayers.length || (blok.geojson && blok.visible)" class="map-legend">
+          <div>LEGENDA</div>
           <div v-if="rasterLegend" class="legend-block">
+            
             <div class="legend-title">{{ rasterLegend.title }}</div>
             <div v-for="item in rasterLegend.items" :key="item.label" class="legend-item">
               <span class="legend-symbol" :style="{ background: item.color }"></span>
               <span class="legend-label">{{ item.label }}</span>
             </div>
+            
           </div>
 
           <div v-if="visibleVectorLayers.length" class="legend-block">
@@ -250,8 +279,17 @@
               <span class="legend-symbol legend-symbol--vector"
                     :style="{ background: layer.color + '33', borderColor: layer.color }"></span>
               <span class="legend-label">{{ layer.name }}</span>
+              
             </div>
           </div>
+
+          <div v-if="blok.geojson && blok.visible" class="legend-block">
+    <div class="legend-item">
+      <span class="legend-symbol legend-symbol--vector" :style="{ background: 'transparent', borderColor: BLOK_COLOR }"></span>
+      <span class="legend-label">BLOK</span>
+    </div>
+  </div>
+  
         </div>
 
         <!-- Status bar -->
@@ -367,6 +405,99 @@ async function loadDefaultVectorLayer() {
     console.error('Default vector loading error:', error)
     showStatus(`Failed to load SPTHAREA: ${error.message}`)
   }
+}
+
+// ── BLOK (shapefile khusus, terpisah dari Layer vektor) ───────────────────
+const BLOK_COLOR = '#ffd740'
+const blok = ref({ geojson: null, visible: true, count: 0 })
+let blokLeaflet = null
+
+const escapeHtml = (s) =>
+  String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+// Ambil atribut tanpa peduli huruf besar/kecil (Blok / BLOK / blok)
+function getProp(props, name) {
+  const key = Object.keys(props || {}).find(k => k.toLowerCase() === name.toLowerCase())
+  return key !== undefined ? props[key] : null
+}
+
+function blokPopupHtml(props) {
+  const nama = getProp(props, 'Blok')
+  const luas = getProp(props, 'Luas_Ha')
+  const luasNum = Number(luas)
+  const luasText = luas === null || luas === '' ? '-'
+    : Number.isNaN(luasNum) ? escapeHtml(luas)
+    : luasNum.toLocaleString('id-ID', { maximumFractionDigits: 2 })
+
+  return `<div class="popup-content blok-popup">
+    <div class="blok-row"><b>${nama === null ? '-' : escapeHtml(nama)}</b></div>
+    <div class="blok-row"><span>Luas: </span><b>${luasText}</b> Ha</div>
+  </div>`
+}
+
+async function loadBlokLayer() {
+  try {
+    const files = ['blok.shp', 'blok.shx', 'blok.dbf', 'blok.prj', 'blok.cpg']
+    for (const f of ['blok.shp', 'blok.shx', 'blok.dbf']) {
+      if (!vectorFileMap[f]) throw new Error(`Missing file: ${f}`)
+    }
+
+    const zip = new JSZip()
+    for (const f of files) {
+      const url = vectorFileMap[f]
+      if (!url) continue
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`Failed to fetch ${f}`)
+      zip.file(f, await res.arrayBuffer())
+    }
+
+    const geojson = await shp(await zip.generateAsync({ type: 'arraybuffer' }))
+    blok.value = {
+      geojson: markRaw(geojson),
+      visible: true,
+      count: geojson.features?.length || 0,
+    }
+    renderBlok()
+  } catch (error) {
+    console.error('Blok loading error:', error)
+    showStatus(`Failed to load BLOK: ${error.message}`)
+  }
+}
+
+function renderBlok() {
+  if (!map) return
+  if (blokLeaflet) { map.removeLayer(blokLeaflet); blokLeaflet = null }
+  if (!blok.value.geojson || !blok.value.visible) return
+
+  const baseStyle = { color: BLOK_COLOR, weight: 2, opacity: 1, fill: true, fillColor: BLOK_COLOR, fillOpacity: 0 }
+
+  blokLeaflet = L.geoJSON(blok.value.geojson, {
+    pane: 'blokPane',
+    style: () => baseStyle,
+    onEachFeature: (f, fl) => {
+      fl.on('mouseover', () => fl.setStyle({ weight: 3.5, fillOpacity: 0.08 }))
+      fl.on('mouseout',  () => fl.setStyle(baseStyle))
+      fl.on('click', (e) => {
+        // jangan ganggu saat menggambar / menghapus fitur
+        if (drawMode.value || editMode.value) return
+        L.popup({ closeButton: true })
+          .setLatLng(e.latlng)
+          .setContent(blokPopupHtml(f.properties))
+          .openOn(map)
+      })
+    },
+  }).addTo(map)
+}
+
+function toggleBlok() {
+  blok.value.visible = !blok.value.visible
+  renderBlok()
+}
+
+function zoomToBlok() {
+  if (!blokLeaflet) return
+  const b = blokLeaflet.getBounds()
+  if (b.isValid()) map.fitBounds(b, { padding: [40, 40] })
 }
 // ── RASTER MANAGER ────────────────────────────────────────
 
@@ -577,6 +708,9 @@ onMounted(async () => {
     wheelPxPerZoomLevel: 120,
   }).setView([0, 0], 3)
 
+  // pane khusus BLOK (di atas overlayPane = 400)
+  map.createPane('blokPane').style.zIndex = 450
+
   baseTileLayer = L.tileLayer(currentBasemap.value.url, {
     attribution: currentBasemap.value.attribution, maxZoom: 19,
   }).addTo(map)
@@ -587,7 +721,8 @@ onMounted(async () => {
   map.on('click', () => { basemapOpen.value = false })
 
   initializeRasterLayers()
-await loadDefaultVectorLayer()
+  await loadDefaultVectorLayer()
+  await loadBlokLayer()
 })
 
 onBeforeUnmount(() => {
@@ -1836,5 +1971,11 @@ export const ToolbarBtn = defineComponent({
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
+
+  /* Popup BLOK */
+.blok-popup { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+.blok-row { display: flex; justify-content: space-between; gap: 16px; }
+.blok-row span { color: var(--muted); }
+.blok-row b { font-weight: 600; text-align: right; }
 }
 </style>
